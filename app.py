@@ -30,11 +30,9 @@ def preprocess_text(text):
     stop_words = set(stopwords.words('english'))
     tokens = [word for word in tokens if word not in stop_words]
     text = ' '.join(tokens)
-    
-    text = re.sub('[^a-zA-Z]', ' ', text)
-    text = re.sub('user', ' ', text)
-    text = re.sub('rt', ' ', text)
 
+    text = re.sub('[^a-zA-Z]', ' ', text)
+    
     # Stem the words
     stemmer = PorterStemmer()
     stemmed_text = stemmer.stem(text)
@@ -42,8 +40,12 @@ def preprocess_text(text):
     # Lemmatize the words
     lemmatizer = WordNetLemmatizer()
     lemmatized_text = lemmatizer.lemmatize(stemmed_text)
+    
+    
+    preprocessed_text = re.sub('user', ' ', lemmatized_text)
+    preprocessed_text = re.sub('rt', ' ', lemmatized_text)
 
-    preprocessed_text = lemmatized_text
+    
     logging.debug("Preprocessed text: %s", preprocessed_text)
     return [preprocessed_text]
 
