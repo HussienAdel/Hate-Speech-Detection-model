@@ -1,15 +1,23 @@
 import numpy as np
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 import os
 import pickle
+import logging
 
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 
+# Download necessary NLTK data
 nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('punkt')
+
+# Initialize logging
+logging.basicConfig(level=logging.DEBUG)
 
 def preprocess_text(text):
+    logging.debug("Preprocessing text: %s", text)
     # Tokenize the text
     tokens = nltk.word_tokenize(text)
 
@@ -24,50 +32,59 @@ def preprocess_text(text):
     stemmer = PorterStemmer()
     tokens = [stemmer.stem(word) for word in tokens]
     
-    # lemmatize the words
+    # Lemmatize the words
     lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(word) for word in tokens]
 
     # Join the tokens back into a string
     preprocessed_text = ' '.join(tokens)
-    lst = []
-    lst.append(preprocessed_text)
-    return lst
+    logging.debug("Preprocessed text: %s", preprocessed_text)
+    return [preprocessed_text]
 
+# Initialize the flask App
+app = Flask(__name__)
 
-# D:\My_ML_Projects\Hate_Speech_Deployment\myModel.pkl
+# Load the trained model and vectorizer
+try:
+    model_path = 'myModel.pkl'
+    vectorizer_path = 'vactorizer.pkl'
 
-model = pickle.load(open('myModel.pkl', 'rb')) # Load the trained model
-vactorizer = pickle.load(open('vactorizer.pkl', 'rb'))
+    if not os.path.isfile(model_path) or not os.path.isfile(vectorizer_path):
+        raise FileNotFoundError(f"Model or vectorizer file not found: {model_path}, {vectorizer_path}")
 
-app = Flask(__name__) # Initialize the flask App
+    model = pickle.load(open(model_path, 'rb'))
+    vactorizer = pickle.load(open(vectorizer_path, 'rb'))
+    logging.info("Model and vectorizer loaded successfully.")
+except Exception as e:
+    logging.error("Error loading model or vectorizer: %s", e)
+    raise
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Get data from the request
-    data = request.get_json() # data = {"text" : data}
-     
-    # Get data from the request as a string
-    #data = request.data.decode('utf-8')
+    try:
+        logging.debug("Received request: %s", request.data)
+        # Get data from the request
+        data = request.get_json()
+        if not data or 'text' not in data:
+            raise ValueError("No text data provided in the request")
 
-    # Preprocess the text
-    preprocessed_text = preprocess_text(data['text'])
+        # Preprocess the text
+        preprocessed_text = preprocess_text(data['text'])
 
-    # Vectorize the preprocessed text
-    vectorized_text = vactorizer.transform(preprocessed_text).toarray()
+        # Vectorize the preprocessed text
+        vectorized_text = vactorizer.transform(preprocessed_text).toarray()
 
-    # Make a prediction
-    prediction = model.predict_proba(vectorized_text)
+        # Make a prediction
+        prediction = model.predict_proba(vectorized_text)
 
-    out = None
+        out = 1 if prediction[0][1] > 0.25 else 0
 
-    if prediction[0][1] > 0.25 :
-        out = 1 # if the text is hate speech.
-    else :
-        out = 0 # if the text is natural.   
-
-    # Return the predictions as JSON
-    return jsonify({'predictions': out})
+        # Return the predictions as JSON
+        logging.debug("Prediction: %d", out)
+        return jsonify({'predictions': out})
+    except Exception as e:
+        logging.error("Error in prediction: %s", e)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
