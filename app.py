@@ -43,7 +43,7 @@ def preprocess_text(text):
     
     
     preprocessed_text = re.sub('user', ' ', lemmatized_text)
-    preprocessed_text = re.sub('rt', ' ', lemmatized_text)
+    preprocessed_text = re.sub('rt', ' ', preprocessed_text)
 
     
     logging.debug("Preprocessed text: %s", preprocessed_text)
