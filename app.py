@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 import os
 import pickle
 import logging
+import re
 
 import nltk
 from nltk.corpus import stopwords
@@ -18,6 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def preprocess_text(text):
     logging.debug("Preprocessing text: %s", text)
+    
     # Tokenize the text
     tokens = nltk.word_tokenize(text)
 
@@ -27,17 +29,21 @@ def preprocess_text(text):
     # Remove stopwords
     stop_words = set(stopwords.words('english'))
     tokens = [word for word in tokens if word not in stop_words]
+    text = ' '.join(tokens)
+    
+    text = re.sub('[^a-zA-Z]', ' ', text)
+    text = re.sub('user', ' ', text)
+    text = re.sub('rt', ' ', text)
 
     # Stem the words
     stemmer = PorterStemmer()
-    tokens = [stemmer.stem(word) for word in tokens]
+    stemmed_text = stemmer.stem(text)
     
     # Lemmatize the words
     lemmatizer = WordNetLemmatizer()
-    tokens = [lemmatizer.lemmatize(word) for word in tokens]
+    lemmatized_text = lemmatizer.lemmatize(stemmed_text)
 
-    # Join the tokens back into a string
-    preprocessed_text = ' '.join(tokens)
+    preprocessed_text = lemmatized_text
     logging.debug("Preprocessed text: %s", preprocessed_text)
     return [preprocessed_text]
 
